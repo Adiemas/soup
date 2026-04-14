@@ -1,0 +1,59 @@
+openapi: 3.0.3
+info:
+  title: ExternalBalance API (mock)
+  version: 0.1.0
+  description: |
+    Streck-internal balance-data service consumed by the damage simulator.
+    This spec is the SOURCE OF TRUTH for the Python client under
+    `backend/app/clients/external_balance.py`; the client MUST be
+    regenerated whenever this file changes. See `contract-drift-detection`.
+servers:
+  - url: http://external-balance.internal/v1
+paths:
+  /adjustments/{unit_id}:
+    get:
+      operationId: getAdjustments
+      summary: Get balance adjustments for a unit
+      parameters:
+        - in: path
+          name: unit_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Adjustments found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Adjustments"
+        "404":
+          description: No adjustments for this unit (normal; client treats as empty)
+        "503":
+          description: Upstream balance service unavailable
+components:
+  schemas:
+    Adjustments:
+      type: object
+      required: [unit_id, revision, modifiers]
+      properties:
+        unit_id:
+          type: string
+        revision:
+          type: integer
+          description: Monotonic revision; client caches by this value.
+        modifiers:
+          type: object
+          properties:
+            hit_modifier:
+              type: integer
+              minimum: -3
+              maximum: 3
+            wound_modifier:
+              type: integer
+              minimum: -3
+              maximum: 3
+            save_modifier:
+              type: integer
+              minimum: -3
+              maximum: 3

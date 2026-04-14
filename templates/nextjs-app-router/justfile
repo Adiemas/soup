@@ -1,0 +1,41 @@
+set shell := ["bash", "-cu"]
+
+init:
+    npm install
+    @echo "If this project uses Supabase locally:"
+    @echo "  supabase start  (requires the Supabase CLI)"
+
+dev:
+    npm run dev
+
+build:
+    npm run build
+
+start:
+    npm run start
+
+test:
+    npm run test
+
+test-e2e:
+    npx playwright install --with-deps chromium
+    npm run test:e2e
+
+lint:
+    npm run lint
+
+typecheck:
+    npm run typecheck
+
+migrate name:
+    supabase migration new "{{name}}"
+
+migrate-up:
+    supabase db push
+
+gen-types:
+    supabase gen types typescript --local > src/types/database.ts
+
+up:
+    docker build -t your-app:dev .
+    docker run --rm -p 3000:3000 --env-file .env.local your-app:dev

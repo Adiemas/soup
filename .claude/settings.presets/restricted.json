@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "_preset_meta": {
+    "name": "restricted",
+    "description": "Minimalist permissions for restricted-scope repos (scripts, ops automation, one-binary services). Mirrors the claude-news-aggregator pattern — only git/gh + in-process file tools. No Bash beyond explicit allow-list.",
+    "source": "docs/real-world-dogfood/claude-news-aggregator.md",
+    "tier": "restricted"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(gh auth:*)",
+      "Bash(gh repo:*)",
+      "Bash(git push:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Read",
+      "Grep",
+      "Glob",
+      "Edit",
+      "Write",
+      "MultiEdit",
+      "AskUserQuestion"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(sudo:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(nc:*)",
+      "Bash(ncat:*)",
+      "Bash(socat:*)",
+      "Bash(telnet:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "Bash(rsync:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean -fdx:*)",
+      "Bash(eval:*)",
+      "Read(//.env)",
+      "Read(//**/.env)",
+      "Read(//**/id_rsa)",
+      "Read(//**/id_ed25519)",
+      "Read(//**/*.pem)",
+      "Read(//**/credentials.json)"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(gh pr merge:*)"
+    ]
+  }
+}

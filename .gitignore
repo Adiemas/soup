@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# .NET
+bin/
+obj/
+*.user
+
+# Node
+node_modules/
+dist/
+.next/
+.vercel/
+.turbo/
+
+# Env
+.env
+.env.local
+
+# Soup runtime state
+.soup/
+logging/agent-runs/*.jsonl
+logging/experiments.tsv
+logging/sessions.tsv
+logging/baseline-*.jsonl
+!logging/agent-runs/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

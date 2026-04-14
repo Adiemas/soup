@@ -1,0 +1,25 @@
+node_modules
+.next
+out
+build
+dist
+
+# env
+.env
+.env.local
+.env.*.local
+
+# test / CI
+coverage
+playwright-report
+test-results
+.vercel
+
+# editor
+.vscode
+.idea
+*.swp
+.DS_Store
+
+# generated Supabase types
+src/types/database.ts

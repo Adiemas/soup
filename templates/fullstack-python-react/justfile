@@ -1,0 +1,28 @@
+set shell := ["bash", "-cu"]
+
+# Install dev deps for both halves
+init:
+    cd backend && python -m pip install -e ".[dev]"
+    cd frontend && npm install
+
+# Run both dev servers (foreground — use two terminals or `just up`)
+dev-backend:
+    cd backend && uvicorn app.main:app --reload --port 8000
+
+dev-frontend:
+    cd frontend && npm run dev
+
+# Run both test suites
+test:
+    cd backend && pytest -v
+    cd frontend && npm test
+
+# Stand up the full stack via docker compose
+up:
+    docker compose up -d --build
+
+down:
+    docker compose down -v
+
+logs:
+    docker compose logs -f

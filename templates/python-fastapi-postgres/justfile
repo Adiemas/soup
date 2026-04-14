@@ -1,0 +1,33 @@
+set shell := ["bash", "-cu"]
+
+# Bootstrap dev env
+init:
+    python -m pip install -e ".[dev]"
+
+# Run dev server with hot reload
+dev:
+    uvicorn app.main:app --reload --port 8000
+
+# Run tests
+test:
+    pytest -v
+
+# Lint
+lint:
+    ruff check app tests
+    mypy app
+
+# Apply forward migrations (needs POSTGRES_* env)
+migrate-up:
+    python -m cli_wrappers.psql migrate-up --dir migrations
+
+# Revert last migration
+migrate-down:
+    python -m cli_wrappers.psql migrate-down --dir migrations
+
+# Stand up stack via docker compose
+up:
+    docker compose up -d --build
+
+down:
+    docker compose down -v

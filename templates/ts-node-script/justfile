@@ -1,0 +1,28 @@
+set shell := ["bash", "-cu"]
+
+init:
+    npm install
+
+dev:
+    npm run dev
+
+run *ARGS:
+    npx tsx src/main.ts {{ARGS}}
+
+build:
+    npm run build
+
+start:
+    npm run start
+
+test:
+    npm run test
+
+lint:
+    npm run lint
+
+typecheck:
+    npm run typecheck
+
+scan:
+    gitleaks detect --config .gitleaks.toml --source . --no-banner

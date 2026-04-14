@@ -1,0 +1,20 @@
+set shell := ["bash", "-cu"]
+
+init:
+    npm install
+
+dev:
+    npm run dev
+
+build:
+    npm run build
+
+test:
+    npm test
+
+preview:
+    npm run preview
+
+up:
+    docker build -t your-app:dev .
+    docker run --rm -p 8081:80 your-app:dev

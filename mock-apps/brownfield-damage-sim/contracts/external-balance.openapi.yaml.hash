@@ -1,0 +1,5 @@
+# sha256 of contracts/external-balance.openapi.yaml (normalized: sort keys, strip trailing ws).
+# Recompute with:
+#   python -c "import yaml, hashlib, pathlib; d=yaml.safe_load(pathlib.Path('contracts/external-balance.openapi.yaml').read_text()); print(hashlib.sha256(yaml.safe_dump(d, sort_keys=True).encode()).hexdigest())"
+# Updated by full-stack-integrator during regen. Checked in. CI greps and compares.
+PLACEHOLDER-run-regen-script-to-populate

@@ -1,0 +1,65 @@
+# gitleaks config. Committed artifact. Custom rules for providers this
+# project may touch (Anthropic, Slack, AWS) layered on top of gitleaks
+# defaults. Path allowlist keeps generated fixtures from tripping scans.
+#
+# Run locally: gitleaks detect --config .gitleaks.toml --source .
+# CI runs the same in .github/workflows/ci.yml.
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "anthropic-api-key"
+description = "Anthropic API key (sk-ant-*)"
+regex = '''sk-ant-[A-Za-z0-9\-_]{40,}'''
+tags = ["anthropic", "api-key"]
+keywords = ["sk-ant-"]
+entropy = 4.0
+[rules.allowlist]
+paths = [
+  '''(?i)/(test|tests|__tests__|e2e|fixtures|mocks|examples|docs)(/|$)''',
+]
+
+[[rules]]
+id = "slack-webhook"
+description = "Slack incoming webhook URL"
+regex = '''https://hooks\.slack\.com/services/T[A-Z0-9]{8,}/B[A-Z0-9]{8,}/[A-Za-z0-9]{24,}'''
+tags = ["slack", "webhook"]
+keywords = ["hooks.slack.com"]
+
+[[rules]]
+id = "slack-bot-token"
+description = "Slack bot/user/app token"
+regex = '''xox[baprs]-[A-Za-z0-9\-]{10,}'''
+tags = ["slack", "token"]
+keywords = ["xoxb-", "xoxp-", "xoxa-", "xoxr-", "xoxs-"]
+
+[[rules]]
+id = "aws-access-key-id"
+description = "AWS Access Key ID"
+regex = '''\b(AKIA|ASIA)[0-9A-Z]{16}\b'''
+tags = ["aws", "access-key"]
+keywords = ["AKIA", "ASIA"]
+
+[[rules]]
+id = "aws-secret-access-key"
+description = "AWS Secret Access Key (heuristic)"
+regex = '''(?i)aws(.{0,20})?(secret|key)[\s:=]+['"]?[A-Za-z0-9/+=]{40}['"]?'''
+tags = ["aws", "secret"]
+keywords = ["aws"]
+entropy = 4.3
+
+[allowlist]
+description = "Global path allowlist"
+paths = [
+  '''(?i)^node_modules(/|$)''',
+  '''(?i)^dist(/|$)''',
+  '''(?i)^build(/|$)''',
+  '''(?i)^coverage(/|$)''',
+  '''(?i)^\.git(/|$)''',
+  '''(?i)^\.github/workflows/ci\.yml$''',
+]
+regexes = [
+  # Documented placeholder tokens in examples/docs.
+  '''example|placeholder|REDACTED|\*\*\*\*''',
+]

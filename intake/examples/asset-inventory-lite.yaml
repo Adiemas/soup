@@ -1,0 +1,94 @@
+# Streck intake form — Asset Inventory Lite
+# Simpler reference example: no ADO, just GitHub + internal Postgres.
+# Validated by schemas/intake_form.py::IntakeForm
+
+app_slug: asset-inventory-lite
+app_name: Asset Inventory Lite
+description: >
+  Single-page internal app that lists every tracked Streck asset
+  (laptops, scopes, freezers) with filter + export. Replaces the
+  ad-hoc shared spreadsheet that Lab Ops currently maintains.
+
+intent: >
+  Lab Ops needs one source of truth for asset locations. The current
+  spreadsheet has 3 active editors and merges by hand; this is the
+  "good enough" replacement before we tackle full asset lifecycle.
+
+requesting_team: Lab Ops
+
+primary_users:
+  - Lab Tech
+  - Lab Ops Manager
+
+inputs:
+  - name: asset_id
+    description: >
+      Asset tag scanned or typed; matches the existing seed dataset.
+    type: number
+  - name: filter_query
+    description: >
+      Free-text filter on asset name, type, location, or owner.
+    type: text
+  - name: asset_csv_upload
+    description: >
+      Initial-load CSV of assets from the existing spreadsheet
+      (one-time + occasional re-imports).
+    type: file
+
+outputs:
+  - name: asset_table
+    description: >
+      Sortable table view; one row per asset.
+    type: other
+  - name: asset_csv_export
+    description: >
+      RFC 4180 CSV of the currently filtered view.
+    type: file
+  - name: asset_count_badge
+    description: >
+      Header badge showing the total + filtered counts.
+    type: other
+  - name: edit_audit_entry
+    description: >
+      Append-only Postgres row whenever an asset record is edited.
+    type: other
+
+integrations:
+  - kind: github-repo
+    ref: streck/lab-design-system
+    purpose: >
+      Pull versioned React component library so the page matches
+      other internal tools.
+    auth: pat
+
+  - kind: database
+    ref: postgres://lab-ops-db.streck.internal/lab_ops
+    purpose: >
+      Persist asset rows + the edit audit log.
+    auth: api-key
+
+stack_preference: fullstack-python-react
+
+deployment_target: internal-docker
+
+success_outcomes:
+  - >
+    Lab Tech can locate any asset in under 30 seconds.
+  - >
+    Lab Ops Manager can export the full inventory as CSV that opens
+    cleanly in Excel.
+  - >
+    All asset edits show up in the audit log within 1 second of save.
+
+constraints:
+  - >
+    P95 page load <= 2 seconds on the internal VPN.
+  - >
+    Cannot expose outside Streck VPN.
+  - >
+    Engineer budget ~1 week of one engineer.
+
+deadline: "2026-05-15"
+
+compliance_flags:
+  - internal-only

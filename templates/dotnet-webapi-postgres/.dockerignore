@@ -1,0 +1,19 @@
+**/bin/
+**/obj/
+**/out/
+**/.vs/
+**/.idea/
+**/.vscode/
+**/.soup/
+**/*.user
+**/*.suo
+**/.git
+**/.github
+
+# The test project is not part of the runtime image.
+YourApi.Tests/
+
+# Local env files
+.env
+.env.*
+!.env.example

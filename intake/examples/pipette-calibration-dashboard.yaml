@@ -1,0 +1,148 @@
+# Streck intake form — Pipette Calibration Dashboard
+# Validated by schemas/intake_form.py::IntakeForm
+# Consumed by `/intake --file intake/examples/pipette-calibration-dashboard.yaml`
+
+app_slug: pipette-calibration-dashboard
+app_name: Pipette Calibration Dashboard
+description: >
+  Internal web app that surfaces calibration status of every Streck lab
+  pipette in one view. Pulls live asset records from the existing
+  AssetTracker REST API and joins open maintenance tickets from Azure
+  DevOps, then renders a sortable React dashboard with a CSV export for
+  monthly compliance reports.
+
+intent: >
+  Lab Ops loses ~6 hours/week chasing calibration status across three
+  systems (AssetTracker UI, paper logs, ADO tickets). A single dashboard
+  with a "next-due" sort and inline link to the open ticket cuts that to
+  under 30 minutes and removes the spreadsheet that compliance has
+  flagged twice in 2025 audits.
+
+requesting_team: Lab Ops
+
+primary_users:
+  - Lab Ops Manager
+  - Lab Tech (calibration owner)
+  - QA Compliance Auditor
+
+inputs:
+  - name: pipette_record
+    description: >
+      Asset metadata for a pipette (id, model, location, last calibrated
+      date, calibration interval days). Sourced from AssetTracker REST.
+    type: api-call
+  - name: maintenance_ticket
+    description: >
+      Open ADO work-item linked to a pipette by asset_id custom field.
+      Used to flag "in maintenance" rows on the dashboard.
+    type: api-call
+  - name: filter_query
+    description: >
+      User-typed filter on lab room, technician, or status (overdue / due
+      soon / current / in maintenance).
+    type: text
+  - name: csv_export_window
+    description: >
+      Date range the user picks before triggering the CSV export.
+    type: text
+
+outputs:
+  - name: dashboard_view
+    description: >
+      Sortable React table with status pill, next-due date, owner, and a
+      link out to the ADO ticket if any is open.
+    type: other
+  - name: status_summary_card
+    description: >
+      Top-of-page card showing counts by status (overdue / due soon /
+      current / in maintenance) and a total-pipettes badge.
+    type: other
+  - name: calibration_csv_export
+    description: >
+      RFC 4180 CSV with one row per pipette for the chosen window;
+      includes asset_id, model, location, last_calibrated_at,
+      next_due_at, status, open_ticket_url.
+    type: file
+  - name: due_soon_email
+    description: >
+      Daily 06:00 EST email to Lab Ops Manager listing pipettes due in
+      the next 14 days. Body is HTML; subject is templated.
+    type: other
+  - name: audit_log_entry
+    description: >
+      Append-only entry to the lab-data audit log on every CSV export
+      and ticket-link click (who, when, asset_ids, ip).
+    type: other
+
+integrations:
+  - kind: rest-api
+    ref: https://assettracker.streck.internal/api/v2
+    purpose: >
+      Read pipette asset records (GET /assets?type=pipette). No writes.
+    auth: api-key
+
+  - kind: ado-project
+    ref: streck/LabOps
+    purpose: >
+      Query open work-items with WorkItemType="Maintenance" and custom
+      field Streck.AssetId set; one-way read for the dashboard ticket
+      column.
+    auth: pat
+
+  - kind: github-repo
+    ref: streck/lab-design-system
+    purpose: >
+      Pull versioned React component library (StreckTable, StatusPill,
+      StreckCard) so the dashboard matches the rest of the lab portal.
+    auth: pat
+
+  - kind: database
+    ref: postgres://lab-ops-db.streck.internal/lab_ops
+    purpose: >
+      Persist user filter presets, audit-log entries, and a 30-day
+      cache of AssetTracker responses to survive upstream outages.
+    auth: api-key
+
+  - kind: rest-api
+    ref: https://mailrelay.streck.internal/api/v1
+    purpose: >
+      Send the 06:00 daily "due soon" email via the internal mail
+      relay (POST /messages).
+    auth: api-key
+
+stack_preference: fullstack-python-react
+
+deployment_target: internal-docker
+
+success_outcomes:
+  - >
+    Lab Ops Manager can identify all overdue pipettes for the current
+    quarter in under 30 seconds.
+  - >
+    Compliance auditor can export a calibration CSV for any 12-month
+    window in under 5 seconds (P95) and the file passes the existing
+    audit ingestion script unchanged.
+  - >
+    Dashboard reflects an AssetTracker calibration update within 5
+    minutes of the upstream change (cache TTL).
+  - >
+    The 06:00 due-soon email lands in the Lab Ops inbox 5 of 5 days a
+    week with zero false positives over a 4-week shakedown.
+
+constraints:
+  - >
+    P95 page load <= 2 seconds on the Streck internal VPN; the lab
+    floor uses 8-year-old workstations.
+  - >
+    Cannot be exposed outside the Streck VPN. No public DNS entry.
+  - >
+    Engineer time budget capped at ~3 weeks of one full-time engineer.
+  - >
+    Must conform to Streck lab-data retention policy: audit log rows
+    kept for 7 years.
+
+deadline: "2026-06-14"
+
+compliance_flags:
+  - lab-data
+  - internal-only

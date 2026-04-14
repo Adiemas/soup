@@ -1,0 +1,205 @@
+# Soup — distributed skill/agent catalog (The Library pattern)
+# Pull on demand via: just library-use <name>
+# Source of truth lives in upstream repos; local copies are cached.
+#
+# NOTE: Templates under templates/ are discoverable by /soup-init directly
+# (directory listing) and don't require a catalog entry here. Likewise,
+# file-resolved rules under rules/<stack>/*.md are auto-injected by the
+# pre_tool_use hook based on path/extension routing (see
+# .claude/hooks/pre_tool_use.py). Compliance rules under
+# rules/compliance/*.md are injected by the subagent_start hook based on
+# the active intake form's `compliance_flags[]` (see
+# rules/compliance/README.md and .claude/hooks/subagent_start.py). Global
+# rules (rules/global/*.md) are always injected by subagent_start. Only
+# skills and agents are cataloged here.
+
+version: 1
+
+catalog:
+  # Skills — core procedural gates (superpowers-adapted)
+  - name: brainstorming
+    type: skill
+    source: local:.claude/skills/brainstorming/SKILL.md
+    upstream: https://github.com/obra/superpowers
+    requires: []
+
+  - name: tdd
+    type: skill
+    source: local:.claude/skills/tdd/SKILL.md
+    upstream: https://github.com/obra/superpowers
+    requires: []
+
+  - name: systematic-debugging
+    type: skill
+    source: local:.claude/skills/systematic-debugging/SKILL.md
+    upstream: https://github.com/obra/superpowers
+    requires: [tdd]
+
+  - name: verification-before-completion
+    type: skill
+    source: local:.claude/skills/verification-before-completion/SKILL.md
+    upstream: https://github.com/obra/superpowers
+    requires: []
+
+  - name: writing-plans
+    type: skill
+    source: local:.claude/skills/writing-plans/SKILL.md
+    upstream: https://github.com/obra/superpowers
+    requires: [brainstorming]
+
+  - name: executing-plans
+    type: skill
+    source: local:.claude/skills/executing-plans/SKILL.md
+    upstream: https://github.com/obra/superpowers
+    requires: [writing-plans, verification-before-completion]
+
+  - name: subagent-driven-development
+    type: skill
+    source: local:.claude/skills/subagent-driven-development/SKILL.md
+    upstream: https://github.com/obra/superpowers
+    requires: []
+
+  - name: dispatching-parallel-agents
+    type: skill
+    source: local:.claude/skills/dispatching-parallel-agents/SKILL.md
+    upstream: https://github.com/obra/superpowers
+    requires: []
+
+  - name: using-git-worktrees
+    type: skill
+    source: local:.claude/skills/using-git-worktrees/SKILL.md
+    upstream: https://github.com/obra/superpowers
+    requires: []
+
+  - name: requesting-code-review
+    type: skill
+    source: local:.claude/skills/requesting-code-review/SKILL.md
+    upstream: https://github.com/obra/superpowers
+    requires: []
+
+  # Skills — soup-specific
+  - name: agentic-rag-research
+    type: skill
+    source: local:.claude/skills/agentic-rag-research/SKILL.md
+    requires: []
+
+  - name: spec-driven-development
+    type: skill
+    source: local:.claude/skills/spec-driven-development/SKILL.md
+    requires: [writing-plans, tdd]
+
+  - name: meta-prompting
+    type: skill
+    source: local:.claude/skills/meta-prompting/SKILL.md
+    requires: []
+
+  - name: cli-wrapper-authoring
+    type: skill
+    source: local:.claude/skills/cli-wrapper-authoring/SKILL.md
+    requires: []
+
+  - name: contract-drift-detection
+    type: skill
+    source: local:.claude/skills/contract-drift-detection/SKILL.md
+    requires: [verification-before-completion]
+
+  - name: brownfield-baseline-capture
+    type: skill
+    source: local:.claude/skills/brownfield-baseline-capture/SKILL.md
+    requires: [verification-before-completion]
+
+  # Agents — v1 roster
+  - name: orchestrator
+    type: agent
+    source: local:.claude/agents/orchestrator.md
+  - name: meta-prompter
+    type: agent
+    source: local:.claude/agents/meta-prompter.md
+  - name: architect
+    type: agent
+    source: local:.claude/agents/architect.md
+  - name: implementer
+    type: agent
+    source: local:.claude/agents/implementer.md
+  - name: python-dev
+    type: agent
+    source: local:.claude/agents/python-dev.md
+  - name: dotnet-dev
+    type: agent
+    source: local:.claude/agents/dotnet-dev.md
+  - name: react-dev
+    type: agent
+    source: local:.claude/agents/react-dev.md
+  - name: ts-dev
+    type: agent
+    source: local:.claude/agents/ts-dev.md
+  - name: sql-specialist
+    type: agent
+    source: local:.claude/agents/sql-specialist.md
+  - name: full-stack-integrator
+    type: agent
+    source: local:.claude/agents/full-stack-integrator.md
+  - name: test-engineer
+    type: agent
+    source: local:.claude/agents/test-engineer.md
+  - name: code-reviewer
+    type: agent
+    source: local:.claude/agents/code-reviewer.md
+  - name: security-scanner
+    type: agent
+    source: local:.claude/agents/security-scanner.md
+  # Critics (sonnet) — invoked by /review --rounds N on round ≥ 2.
+  # Read-only; emit structured CritiqueReport JSON.
+  - name: red-team-critic
+    type: agent
+    source: local:.claude/agents/red-team-critic.md
+  - name: over-eng-critic
+    type: agent
+    source: local:.claude/agents/over-eng-critic.md
+  - name: qa-orchestrator
+    type: agent
+    source: local:.claude/agents/qa-orchestrator.md
+  - name: verifier
+    type: agent
+    source: local:.claude/agents/verifier.md
+  # Deploy specialist (sonnet) — invoked only by /deploy after /verify APPROVE.
+  # Reads IntakeForm.deployment_target from the stashed intake YAML; dispatches
+  # per-target rules under rules/deploy/<target>.md; runs post-deploy smoke +
+  # deploy_baseline_cmd; emits DeployReport JSON.
+  - name: deployer
+    type: agent
+    source: local:.claude/agents/deployer.md
+  - name: rag-researcher
+    type: agent
+    source: local:.claude/agents/rag-researcher.md
+  - name: docs-ingester
+    type: agent
+    source: local:.claude/agents/docs-ingester.md
+  - name: github-agent
+    type: agent
+    source: local:.claude/agents/github-agent.md
+  - name: ado-agent
+    type: agent
+    source: local:.claude/agents/ado-agent.md
+  - name: spec-writer
+    type: agent
+    source: local:.claude/agents/spec-writer.md
+  - name: plan-writer
+    type: agent
+    source: local:.claude/agents/plan-writer.md
+  - name: tasks-writer
+    type: agent
+    source: local:.claude/agents/tasks-writer.md
+  # Utility agents — cross-cutting helpers, alphabetical.
+  - name: doc-writer
+    type: agent
+    source: local:.claude/agents/utility/doc-writer.md
+  - name: docs-scraper
+    type: agent
+    source: local:.claude/agents/utility/docs-scraper.md
+  - name: git-ops
+    type: agent
+    source: local:.claude/agents/utility/git-ops.md
+  - name: researcher
+    type: agent
+    source: local:.claude/agents/utility/researcher.md

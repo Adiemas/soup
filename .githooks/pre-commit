@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+# Soup — pre-commit secret scanner.
+#
+# Constitution Art. VI.3: "Pre-commit hook scans for high-entropy
+# strings and common key prefixes." This script implements the
+# mechanism.
+#
+# Behaviour:
+#   - If repo-level `.gitleaks.toml` exists AND `gitleaks` is on PATH:
+#       Run `gitleaks protect --staged --config .gitleaks.toml`.
+#       Gitleaks is stricter, respects the repo's custom rules +
+#       allowlist, and handles entropy better than grep. Precedence
+#       is documented in `rules/global/security.md` §6a and
+#       `.claude/agents/security-scanner.md`.
+#   - Otherwise (or if gitleaks not installed):
+#       Falls back to the built-in grep scanner below.
+#       Prints an install hint so users can upgrade.
+#   - Runs `git diff --cached` over staged changes.
+#   - Greps for assignments to secret-shaped identifiers and for
+#     known key prefixes (ghp_, AKIA, sk-ant-, etc.).
+#   - Lines annotated with `# pragma: allowlist-secret` are skipped.
+#   - Exits 1 with a concrete pointer on the first match.
+#
+# Install once per clone:   just install-hooks
+#
+set -euo pipefail
+
+RED=$'\033[31m'; YEL=$'\033[33m'; GRN=$'\033[32m'; RST=$'\033[0m'
+
+allow_marker='pragma: allowlist-secret'
+
+# ─── gitleaks preferred path ──────────────────────────────────────
+#
+# Dogfood finding: the target repo `claude-news-aggregator` ships a
+# `.gitleaks.toml` with Anthropic + Slack-webhook rules + a path
+# allowlist for test fixtures. A repo-level TOML encodes team policy
+# that the built-in grep scanner can't express (custom regexes,
+# per-path allowlists, entropy thresholds). If the repo declares one
+# and the binary is installed, use it.
+#
+# Precedence (see rules/global/security.md §6a):
+#   1. repo `.gitleaks.toml`   (team policy)
+#   2. soup built-in patterns  (baseline)
+#   3. ad-hoc heuristics       (fallback)
+if [[ -f .gitleaks.toml ]] && command -v gitleaks >/dev/null 2>&1; then
+    # `gitleaks protect` inspects the current working tree for secrets
+    # that have NOT yet been committed. `--staged` restricts to the
+    # diff about to be committed. `--config` honors the repo's rules
+    # and allowlist. `--redact` prevents secret values from landing in
+    # terminal output / CI logs.
+    if ! gitleaks protect --staged --config .gitleaks.toml --redact --no-banner; then
+        printf '%spre-commit: gitleaks rejected the staged changes%s\n' "$RED" "$RST" >&2
+        printf '  Config: .gitleaks.toml (repo-level rules + allowlist)\n' >&2
+        printf '  If this is a false positive, update the allowlist in\n' >&2
+        printf '  .gitleaks.toml rather than bypassing the hook. Commit blocked.\n' >&2
+        exit 1
+    fi
+    # Gitleaks passed — skip the built-in grep scanner. files_allowed
+    # enforcement below still runs.
+    _gitleaks_ran=1
+elif [[ -f .gitleaks.toml ]]; then
+    # The repo wants gitleaks but the operator doesn't have it. Do NOT
+    # silently ignore the repo's policy; print a hint and fall through
+    # to the built-in scanner as a best-effort baseline.
+    printf '%spre-commit: .gitleaks.toml present but `gitleaks` not on PATH%s\n' "$YEL" "$RST" >&2
+    printf '  Install gitleaks for stronger scans (repo-custom rules honored):\n' >&2
+    printf '    winget install gitleaks      # Windows\n' >&2
+    printf '    brew install gitleaks        # macOS\n' >&2
+    printf '    # or https://github.com/gitleaks/gitleaks/releases\n' >&2
+    printf '  Falling back to soup built-in scanner for this commit.\n' >&2
+    _gitleaks_ran=0
+else
+    # No repo-level config; built-in scanner is the expected path.
+    _gitleaks_ran=0
+fi
+
+# ─── built-in grep scanner (fallback) ────────────────────────────
+#
+# Only runs when gitleaks did NOT cover the commit. When gitleaks
+# already ran on the same staged diff with the repo's custom rules,
+# running this as well would double-report against soup's coarser
+# patterns and potentially flag lines the repo's allowlist suppresses.
+# The built-in scanner is policy-level #2 (soup baseline); #1 wins.
+if [[ "${_gitleaks_ran:-0}" -eq 1 ]]; then
+    # gitleaks handled secrets; jump straight to files_allowed enforcement.
+    _skip_builtin_scan=1
+else
+    _skip_builtin_scan=0
+fi
+
+# Patterns — extended regex. Key-shaped assignments and provider
+# prefixes. The order matters only for which pattern wins a match
+# (reported file:line); all are scanned.
+patterns=(
+    # env-style assignments of secret-shaped keys (value is anything)
+    '(^|[^[:alnum:]_])(GITHUB_TOKEN|GH_TOKEN|ADO_PAT|AZURE_DEVOPS_EXT_PAT|ANTHROPIC_API_KEY|OPENAI_API_KEY|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|SLACK_TOKEN|NPM_TOKEN|PYPI_TOKEN|DB_PASSWORD|POSTGRES_PASSWORD|REDIS_PASSWORD)[[:space:]]*=[[:space:]]*[^[:space:]].*'
+    # GitHub tokens.
+    'ghp_[A-Za-z0-9]{20,}'
+    'ghs_[A-Za-z0-9]{20,}'
+    'gho_[A-Za-z0-9]{20,}'
+    'ghu_[A-Za-z0-9]{20,}'
+    'ghr_[A-Za-z0-9]{20,}'
+    # AWS access key IDs (short keys; value is the key itself).
+    '(^|[^A-Z0-9])(AKIA|ASIA)[A-Z0-9]{16}'
+    # Anthropic API keys.
+    'sk-ant-[A-Za-z0-9_-]{20,}'
+    # Slack bot / user / workflow tokens.
+    'xox[baprs]-[A-Za-z0-9-]{10,}'
+    # Generic PEM block header.
+    '-----BEGIN ([A-Z ]+ )?PRIVATE KEY-----'
+    # Google API key.
+    'AIza[0-9A-Za-z_-]{35}'
+)
+
+if [[ "$_skip_builtin_scan" -ne 1 ]]; then
+    # Collect the staged diff once (filtered to added lines only).
+    staged_diff="$(git diff --cached --unified=0 --no-color 2>/dev/null || true)"
+    if [[ -n "$staged_diff" ]]; then
+        # Only inspect lines that were *added* (leading '+', not '+++ ...').
+        added_lines="$(printf '%s\n' "$staged_diff" | grep -E '^\+([^+]|$)' || true)"
+        if [[ -n "$added_lines" ]]; then
+            # Drop allow-listed lines up front.
+            scanned="$(printf '%s\n' "$added_lines" | grep -v -F "$allow_marker" || true)"
+            if [[ -n "$scanned" ]]; then
+                # Also drop allowlist-file paths that the tree intentionally
+                # contains test fixtures for (kept narrow; if you add more,
+                # update security.md). .env.example by policy contains only
+                # placeholder keys.
+                scanned="$(printf '%s\n' "$scanned" | grep -v -E '^\+\+\+? b/\.env\.example' || true)"
+
+                first_hit=""
+                for pat in "${patterns[@]}"; do
+                    hit="$(printf '%s\n' "$scanned" | grep -E "$pat" || true)"
+                    if [[ -n "$hit" ]]; then
+                        first_hit="$(printf '%s\n' "$hit" | head -n 1)"
+                        break
+                    fi
+                done
+
+                if [[ -n "$first_hit" ]]; then
+                    printf '%spre-commit: potential secret in staged changes%s\n' "$RED" "$RST" >&2
+                    printf '  %soffending line:%s %s\n' "$YEL" "$RST" "$first_hit" >&2
+                    printf '  If this is a false positive (e.g. a test fixture), annotate the line with\n' >&2
+                    printf '    # pragma: allowlist-secret\n' >&2
+                    printf '  and re-stage. Commit blocked.\n' >&2
+                    exit 1
+                fi
+            fi
+        fi
+    fi
+fi
+
+# ─── files_allowed enforcement (F4) ───────────────────────────────
+#
+# When the orchestrator spawns a subagent for a TaskStep, it exports
+# ``SOUP_FILES_ALLOWED`` as a colon-separated list of globs (identical
+# dialect to ``.gitignore``; see PATTERNS §0c). Any commit made from
+# that subagent's process tree inherits the env var, and this block
+# enforces that every staged path matches one of the globs. This
+# closes the cycle-1 completeness gap: the Edit/Write tool hook
+# enforces files_allowed at edit time, but bash-produced files
+# previously slipped through at commit.
+#
+# When SOUP_FILES_ALLOWED is empty/unset, this block is a no-op —
+# human commits are unaffected.
+if [[ -n "${SOUP_FILES_ALLOWED:-}" ]]; then
+    # Split on ':' (POSIX convention). Empty entries are ignored.
+    IFS=':' read -r -a _soup_globs <<< "$SOUP_FILES_ALLOWED"
+
+    # Collect the paths staged for commit (names only).
+    staged_paths="$(git diff --cached --name-only 2>/dev/null || true)"
+    if [[ -n "$staged_paths" ]]; then
+        _bad=""
+        while IFS= read -r p; do
+            [[ -z "$p" ]] && continue
+            # Check against each glob. Exit the inner loop on first hit.
+            _ok=0
+            for g in "${_soup_globs[@]}"; do
+                [[ -z "$g" ]] && continue
+                # bash's extglob matches `**` as zero-or-more path
+                # segments when combined with ``globstar``. Enable it
+                # for the match and restore afterwards.
+                shopt -s globstar 2>/dev/null || true
+                # shellcheck disable=SC2053  # glob is intentional
+                if [[ "$p" == $g ]]; then
+                    _ok=1
+                    break
+                fi
+            done
+            if [[ "$_ok" -eq 0 ]]; then
+                _bad="${_bad}${p}"$'\n'
+            fi
+        done <<< "$staged_paths"
+
+        if [[ -n "$_bad" ]]; then
+            printf '%spre-commit: files_allowed violation%s\n' "$RED" "$RST" >&2
+            printf '  Staged paths outside the step'\''s files_allowed scope:\n' >&2
+            printf '    %s\n' "$SOUP_FILES_ALLOWED" >&2
+            printf '  Offending path(s):\n' >&2
+            while IFS= read -r p; do
+                [[ -z "$p" ]] && continue
+                printf '    - %s\n' "$p" >&2
+            done <<< "$_bad"
+            printf '  Unstage with:  git restore --staged <path>\n' >&2
+            printf '  or update the step'\''s files_allowed glob. Commit blocked.\n' >&2
+            exit 1
+        fi
+    fi
+fi
+
+exit 0

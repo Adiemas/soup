@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /c/Users/ethan/.claude/statusline)",
+      "Read(//c/Users/ethan/.claude//**)"
+    ]
+  }
+}

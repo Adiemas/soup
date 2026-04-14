@@ -1,0 +1,67 @@
+# Soup — local dev stack
+# `docker compose -f docker/docker-compose.yml up -d`
+#
+# Services:
+#   postgres  — Postgres 16 for RAG + app data, initialized from postgres-init.sql
+#   soup-dev  — dev container with python 3.12, just, gh, docker CLI, psql, az
+
+name: soup
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: soup-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-soup}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-soup}
+      POSTGRES_DB: ${POSTGRES_DB:-soup_rag}
+    ports:
+      # Bind to localhost only — never publish a dev Postgres on all interfaces.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - soup-pg-data:/var/lib/postgresql/data
+      - ./postgres-init.sql:/docker-entrypoint-initdb.d/00-postgres-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-soup} -d ${POSTGRES_DB:-soup_rag}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  soup-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: soup-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-soup}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-soup}
+      POSTGRES_DB: ${POSTGRES_DB:-soup_rag}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      ADO_PAT: ${ADO_PAT:-}
+      SOUP_LOG_LEVEL: ${SOUP_LOG_LEVEL:-info}
+    volumes:
+      # repo mount
+      - ..:/workspace:cached
+      # persisted shell history
+      - soup-bash-history:/home/soup/.bash_history.d
+      # NOTE: host docker socket mount has been intentionally removed.
+      # Mounting /var/run/docker.sock into a container that runs agent
+      # code is a container-escape primitive (cycle-1 critical finding).
+      # If you truly need docker-in-docker for local dev, see
+      # docker/README.md — it is strictly opt-in via an override file.
+    working_dir: /workspace
+    # Keep the container alive for `docker compose exec soup-dev bash`.
+    command: ["tail", "-f", "/dev/null"]
+
+volumes:
+  soup-pg-data:
+    name: soup-pg-data
+  soup-bash-history:
+    name: soup-bash-history

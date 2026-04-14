@@ -1,0 +1,60 @@
+[project]
+name = "soup"
+version = "0.1.0"
+description = "Streck's canonical agentic Claude Code framework for internal app development"
+requires-python = ">=3.12"
+authors = [{ name = "Streck AI Engineering" }]
+readme = "README.md"
+
+dependencies = [
+    "pydantic>=2.7",
+    "typer>=0.12",
+    "rich>=13.7",
+    "python-dotenv>=1.0",
+    "httpx>=0.27",
+    "anyio>=4.4",
+    "lightrag-hku>=1.0",        # RAG pipeline — embedded
+    "psycopg[binary]>=3.2",     # Postgres driver for LightRAG + migrations
+    "mcp>=1.0",                 # MCP SDK for rag server
+    "anthropic>=0.40",          # Claude API for meta-prompter + rag
+    "pygments>=2.18",           # logging syntax highlighting
+    "tenacity>=9.0",            # retry logic
+    "pyyaml>=6.0",              # library.yaml parsing
+    "click>=8.1",               # CLI wrappers
+    "ruff",
+    "mypy",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.100",
+]
+
+[project.scripts]
+soup = "orchestrator.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["orchestrator", "rag", "cli_wrappers", "schemas"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "B", "UP", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
