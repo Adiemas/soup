@@ -262,7 +262,12 @@ def test_experiments_tsv_has_cost_usd_column(
         cost_usd=0.0123,
     )
     tsv = tmp_orchestrator.config.experiments_tsv
-    headers, row = tsv.read_text(encoding="utf-8").splitlines()[:2]
+    # iter-3 ε2: skip the `# soup-schema:experiments-v1` comment row.
+    non_comment = [
+        ln for ln in tsv.read_text(encoding="utf-8").splitlines()
+        if not ln.startswith("#")
+    ]
+    headers, row = non_comment[:2]
     cols = headers.split("\t")
     assert "cost_usd" in cols
     cost_idx = cols.index("cost_usd")
@@ -342,9 +347,13 @@ def test_experiments_tsv_append(
     )
     tsv = tmp_orchestrator.config.experiments_tsv
     assert tsv.exists()
-    lines = tsv.read_text(encoding="utf-8").splitlines()
-    assert lines[0].split("\t")[0] == "ts"
-    assert "abc123" in lines[1]
+    # iter-3 ε2: skip the `# soup-schema:experiments-v1` comment row.
+    non_comment = [
+        ln for ln in tsv.read_text(encoding="utf-8").splitlines()
+        if not ln.startswith("#")
+    ]
+    assert non_comment[0].split("\t")[0] == "ts"
+    assert "abc123" in non_comment[1]
 
 
 def test_run_state_roundtrip(tmp_path: Path) -> None:

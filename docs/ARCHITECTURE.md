@@ -331,6 +331,51 @@ bootstrap a deployment.
 rich table. `just last-qa` dumps the most recent QA verdict. Neither
 is required in CI; they exist for dev introspection.
 
+### `soup cost-report` CLI (iter-3 ε4)
+
+For aggregated views across many runs, use `soup cost-report`:
+
+```bash
+soup cost-report --group-by plan                  # cost per plan/goal
+soup cost-report --group-by run --since 2026-04-01
+soup cost-report --until 2026-04-30 --group-by model
+```
+
+The command parses `logging/experiments.tsv` (skipping the `#
+soup-schema:` header + any malformed legacy rows), applies the
+`--since` / `--until` date filters against the `ts` column, buckets
+by the requested key (`plan`, `run`, `agent`, `model`), strips the
+`~` estimate prefix from `cost_usd`, sums per bucket, and prints a
+`rich.Table` sorted descending by cost. A trailing `total:` line
+gives the overall spend across filtered runs. Per-agent and per-
+model splits are placeholder buckets today — populating them requires
+the per-step cost data that ε5 threads through `post_tool_use.py`
+once Claude Code CLI token-count events land in the JSONL.
+
+### Incident response (iter-3 ε7)
+
+When a production alert fires, the flow is logs-first:
+
+1. Operator invokes the `incident-responder` agent with the symptom
+   + time range + severity.
+2. `incident-responder` queries `soup logs search "<pattern>"
+   --since <t0> --until <t1>` and `soup logs tree <run_id>` to pull
+   the matching JSONL entries. Citations carry
+   `session-<id>.jsonl#L<line>`.
+3. `incident-responder` traces log event -> emitter (`Grep`) ->
+   caller -> request handler, then dispatches `test-engineer`
+   (regression test) and `verifier` (fix cycle) via `Agent`.
+4. A postmortem is drafted to
+   `docs/incidents/<YYYY-MM-DD>-<slug>.md` from
+   `docs/incidents/TEMPLATE.md`. Action items carry owner + due
+   date; every log citation carries a line number.
+
+`docs/incidents/` (novel production failures) is deliberately
+separate from `docs/runbooks/` (known environmental glitches with
+codified fixes). A third recurrence of an incident pattern is the
+trigger to extract a runbook. See `docs/incidents/README.md` for
+the distinction.
+
 ---
 
 ## 8. Claude Code CLI invocation contract

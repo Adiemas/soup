@@ -50,6 +50,16 @@ PATH_STACK: tuple[tuple[str, str], ...] = (
     # JSON state files under state/ directories
     ("**/state/**/*.json", "state-persistence-json"),
     ("**/.state/**/*.json", "state-persistence-json"),
+    # iter-3 ε5: app entry-points inherit the full observability pack
+    # (structured logging, correlation ids, health/readiness, error
+    # tracking, metrics). The `observability-entry` virtual stack
+    # expands to a stack+observability merged rule set.
+    ("**/main.py", "observability-entry"),
+    ("**/Program.cs", "observability-entry"),
+    ("**/app/route*.ts", "observability-entry"),
+    ("**/app/**/route.ts", "observability-entry"),
+    ("**/src/index.ts", "observability-entry"),
+    ("**/src/middleware.ts", "observability-entry"),
 )
 
 # Virtual stack names -> explicit file lists inside rules/state-persistence/.
@@ -59,6 +69,15 @@ PATH_STACK: tuple[tuple[str, str], ...] = (
 VIRTUAL_STACK_FILES: dict[str, list[str]] = {
     "state-persistence-sqlite": ["rules/state-persistence/sqlite.md"],
     "state-persistence-json": ["rules/state-persistence/json-file.md"],
+    # iter-3 ε5: every entry-point surface gets the full observability
+    # pack. The README is intentionally omitted (table-of-contents only).
+    "observability-entry": [
+        "rules/observability/structured-logging.md",
+        "rules/observability/correlation-ids.md",
+        "rules/observability/health-readiness.md",
+        "rules/observability/error-tracking.md",
+        "rules/observability/metrics.md",
+    ],
 }
 
 MAX_RULE_CHARS = 12_000  # cap injected context

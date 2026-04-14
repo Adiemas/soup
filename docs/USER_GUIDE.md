@@ -571,6 +571,69 @@ Any diff between the pre-deploy and post-deploy baseline → `DeployReport.verdi
 
 ---
 
+## Observability + incident response
+
+Every soup-built app gets structured logging, correlation IDs, and health/ready/version endpoints wired by default. Every soup *run* emits JSONL telemetry that is queryable from the CLI.
+
+### App-side wiring (shipped in templates)
+
+- **`rules/observability/*.md`** — six rule files routed by `pre_tool_use.py` to entry-point files (`**/main.py`, `**/Program.cs`, `**/app/**/route.ts`, `**/src/middleware.ts`). Cover: structured logging, correlation IDs, health/ready/version, error tracking, metrics.
+- **Python FastAPI template** — `structlog` + correlation-id middleware + `/health`, `/ready`, `/version` endpoints already in `app/main.py`. Drop your domain logic on top.
+- **Next.js App Router template** — `/api/ready`, `/api/version` routes + `x-request-id` middleware shipped.
+- **Other templates** — CLAUDE.md pointer to `rules/observability/README.md`; wire it up as you add your first endpoint.
+
+The rule conventions:
+
+- **Event names:** `{Domain}.{Action}_{State}` (e.g. `Payment.Refund_started`, `Payment.Refund_failed`). Defined once in `rules/global/logging.md`, extended for app-side in `rules/observability/structured-logging.md`.
+- **Correlation IDs:** generated at the edge (HTTP middleware or job dispatcher), propagated through `X-Request-Id` header + log context + downstream API calls + DB query tags.
+- **Level guidance:** `INFO` for state transitions, `WARN` for degraded/fallback paths, `ERROR` only when someone has to act.
+- **Cardinality:** no PII in tags/labels, ever.
+
+### Run-side telemetry (soup itself)
+
+Every orchestrator run writes:
+
+- `logging/agent-runs/session-<id>.jsonl` — per-subagent structured log (tool calls, agent name, parent/root/wave/step fields for tree reconstruction).
+- `logging/experiments.tsv` — one row per wave with `run_id`, `agent`, `model`, tokens, `cost_usd`, verdict. Orchestrator-owned.
+- `logging/sessions.tsv` — one row per Stop-hook session with files touched + verdict placeholder. Stop-hook-owned. Schema separated from `experiments.tsv` deliberately (v1 comment header: `# soup-schema:sessions-v1`).
+- `logging/baseline-<run_id>.jsonl` — pre/post baseline capture (if `regression_baseline_cmd` set on the plan).
+
+### Querying logs — `soup logs`
+
+```
+soup logs tail [--session <id>] [--lines 50] [--follow]
+soup logs tree <run_id>
+soup logs search "<query>" [--session <id>] [--agent <name>]
+```
+
+- `tail` — last N lines of the latest or named session.
+- `tree` — reconstructs parent → child → grandchild subagent tree from `parent_session_id` / `root_run_id` / `wave_idx` / `step_id` fields. Shows agent name, step id, duration inline.
+- `search` — grep structured JSONL for matching events; filters by session or agent.
+
+Justfile shortcuts: `just logs`, `just logs-tree <run-id>`, `just logs-search "<query>"`.
+
+### Cost accounting — `soup cost-report`
+
+```
+soup cost-report [--since YYYY-MM-DD] [--until YYYY-MM-DD] [--group-by agent|plan|model]
+```
+
+Aggregates the `cost_usd` column from `experiments.tsv`. Rate card (internal estimate): opus $15/$75 per MTok in/out, sonnet $3/$15, haiku $1/$5. Groups by agent name by default.
+
+Justfile shortcut: `just cost-report` (defaults to group-by-agent).
+
+### Incident response
+
+Separately from `docs/runbooks/*.md` (known failures with documented fixes), novel incidents get their own flow:
+
+- **`incident-responder` agent** (sonnet, read-only on prod). Invoked for a new incident report; traces symptom → log events (via `soup logs search`) → code (via Grep) → proposes repro case → spawns `test-engineer` for a regression test → drafts postmortem.
+- **`docs/incidents/TEMPLATE.md`** — canonical postmortem format (summary, impact, timeline, root cause, contributing factors, what went well, action items, references).
+- **`docs/incidents/README.md`** — the distinction between runbooks (known issues) and incidents (novel), plus when to escalate.
+
+Hard block: `incident-responder` never writes to production; its output is always a postmortem markdown + a proposed fix diff for a human to apply.
+
+---
+
 ## justfile cheat-sheet
 
 Every recipe below runs under `bash -cu` (Git Bash on Windows). Recipes with arguments quote them: `just go "<goal>"`.
@@ -601,7 +664,10 @@ Every recipe below runs under `bash -cu` (Git Bash on Windows). Recipes with arg
 | `just worktree-rm <name>` | Remove a worktree cleanly |
 | `just preset <name>` | Copy `.claude/settings.presets/<name>.json` over `settings.local.json` |
 | `just logs` | Tail the most recent session JSONL |
+| `just logs-tree <run-id>` | Reconstruct parent→child subagent tree for a run |
+| `just logs-search "<query>"` | Grep structured session logs for matching events |
 | `just experiments` | Open `logging/experiments.tsv` as a rich table |
+| `just cost-report [group_by]` | Aggregate `cost_usd` (by agent / plan / model) |
 | `just last-qa` | Pretty-print the last QA report |
 | `just test` | Framework self-tests (`pytest -q`) |
 | `just lint` | `ruff check .` — same as CI |

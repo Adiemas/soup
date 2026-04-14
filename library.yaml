@@ -169,6 +169,14 @@ catalog:
   - name: deployer
     type: agent
     source: local:.claude/agents/deployer.md
+  # Incident specialist (sonnet) — operator-facing entry point for
+  # production incidents. Read-only on prod; dispatches verifier +
+  # test-engineer via Agent; drafts postmortems to docs/incidents/.
+  # See iter-3 ε7 and rules/observability/ for the instrumentation
+  # contract it relies on.
+  - name: incident-responder
+    type: agent
+    source: local:.claude/agents/incident-responder.md
   - name: rag-researcher
     type: agent
     source: local:.claude/agents/rag-researcher.md

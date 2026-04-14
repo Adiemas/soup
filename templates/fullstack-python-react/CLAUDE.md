@@ -42,6 +42,9 @@ justfile                 top-level recipes
 6. **`docker compose up` must bring the whole stack up.** Break it, you fix it.
 7. **CLAUDE.md in each half** (backend/, frontend/) stays empty by default —
    project-level rules live here.
+8. **Observability:** follow `rules/observability/README.md` — backend
+   ships structlog + `/health` + `/ready` + `/version` + correlation-id
+   middleware; frontend forwards `x-request-id` on every `/api/*` fetch.
 
 ## Local dev
 

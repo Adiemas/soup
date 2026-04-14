@@ -290,6 +290,20 @@ experiments:
 last-qa:
     @python -m orchestrator.cli logs --last-qa
 
+# Reconstruct the parent→child subagent tree for a given run_id.
+logs-tree run_id="":
+    @if [ -z "{{run_id}}" ]; then echo "usage: just logs-tree <run-id>"; exit 2; fi
+    @python -m orchestrator.cli logs tree {{run_id}}
+
+# Grep structured JSONL session logs. Optional --session / --agent filters via soup CLI.
+logs-search query="":
+    @if [ -z "{{query}}" ]; then echo "usage: just logs-search '<query>'"; exit 2; fi
+    @python -m orchestrator.cli logs search "{{query}}"
+
+# Cumulative cost from experiments.tsv (group-by agent|plan|model; since/until optional).
+cost-report group_by="agent":
+    @python -m orchestrator.cli cost-report --group-by {{group_by}}
+
 # ── Docs ─────────────────────────────────────────────────────
 
 # List docs/ tree. (No toolchain dependency — keeps it portable.)

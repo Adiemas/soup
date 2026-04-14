@@ -12,6 +12,9 @@ dependencies = [
     "pydantic-settings>=2.4",
     "psycopg[binary,pool]>=3.2",
     "python-dotenv>=1.0",
+    # iter-3 ε6: structured-logging default per rules/observability/.
+    # Falls back to stdlib logging at runtime if absent (see app/main.py).
+    "structlog>=24",
 ]
 
 [project.optional-dependencies]

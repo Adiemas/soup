@@ -36,6 +36,10 @@ nginx.conf                 prod /api -> api:8000
 5. **No inline styles** beyond tiny local tweaks; CSS/MUI/tokens when the project adopts them.
 6. **Accessibility:** every interactive element has a role/label; images have `alt`.
 7. **No `npm start`** — use `just dev`.
+8. **Observability:** see `rules/observability/README.md` for
+   structured logging (pino), correlation ids on fetch calls, and
+   the `/health` + `/ready` + `/version` contract expected from the
+   backend this SPA talks to.
 
 ## Local dev
 

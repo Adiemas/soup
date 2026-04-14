@@ -77,3 +77,10 @@ just build
 just test          # Testcontainers Postgres — needs Docker running
 just up            # docker compose: db, migrate, api on :8080
 ```
+
+## Observability
+
+Wire structured logging, correlation ids, `/health` + `/ready` +
+`/version` endpoints, Sentry / App Insights, and Prometheus metrics
+per `rules/observability/README.md`. The Program.cs surface in
+this template is the entry-point for all five rules.

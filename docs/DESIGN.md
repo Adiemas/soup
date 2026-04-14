@@ -32,7 +32,7 @@ _Synthesized from 17 reference repos (see `research/01-08-*.md`) on 2026-04-14._
 | 10 | **CLI wrappers** (tool surface) | CLI-Anything | `cli_wrappers/` — `--json` wrappers for `az devops`, `psql`, `docker`, `dotnet`, `git` |
 | 11 | **Templates** (stack starters) | Adiemas | `templates/{python-fastapi-postgres,dotnet-webapi-postgres,react-ts-vite,fullstack}/` |
 | 12 | **Justfile** (three-mode CLI) | disler, gsd | Deterministic / supervised / interactive recipes |
-| 13 | **Logging** (JSONL + TSV) | Adiemas, autoresearch | `logging/agent-runs/*.jsonl` + `logging/experiments.tsv` |
+| 13 | **Logging** (JSONL + split TSVs) | Adiemas, autoresearch | `logging/agent-runs/*.jsonl` (now carries wave-tree threading: `parent_session_id`, `root_run_id`, `wave_idx`, `step_id`) + `logging/experiments.tsv` (orchestrator-owned run ledger) + `logging/sessions.tsv` (stop-hook-owned session ledger). Query surface: `soup logs tree <run_id>`, `soup logs search`, `soup logs tail`. Cost: `soup cost-report [--since --until --group-by]`. See iter-3 ε1+ε2+ε4. |
 | 14 | **Library catalog** (distribution) | The Library | `library.yaml` — pull skills/agents from canonical repos on demand |
 | 15 | **Worktrees** (task isolation) | Archon, superpowers | `.soup/worktrees/` — per-feature git isolation |
 | 16 | **Memory** (session + long-term) | OpenHarness, nanobot | `CLAUDE.md` (session) + `MEMORY.md` (long-term) + `.soup/memory/` (dream-consolidated) |

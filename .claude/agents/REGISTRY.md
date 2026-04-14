@@ -51,6 +51,7 @@ Override only with written rationale in the PR body.
 | `plan-writer` | `.claude/agents/plan-writer.md` | `/plan` author — markdown plan only |
 | `tasks-writer` | `.claude/agents/tasks-writer.md` | `/tasks` author — converts markdown plan → `ExecutionPlan` JSON |
 | `verifier` | `.claude/agents/verifier.md` | Runs `verify_cmd` AND owns the fix cycle on failure (absorbs former `test-runner` and `fix-cycle` aliases) |
+| `incident-responder` | `.claude/agents/incident-responder.md` | Operator-facing incident triage. Read-only on prod; queries `soup logs`; traces log->code; dispatches `test-engineer` + `verifier`; drafts postmortems to `docs/incidents/`. See iter-3 ε7. |
 
 ### Reviewers (sonnet)
 | Agent | File | Focus |

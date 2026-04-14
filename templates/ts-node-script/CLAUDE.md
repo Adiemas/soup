@@ -58,6 +58,10 @@ justfile          dev/test/run/build/lint/typecheck/scan
 10. **Lockfile is authoritative in CI.** `npm ci` / `pnpm install
     --frozen-lockfile` / `yarn install --frozen-lockfile` — never
     plain `install` in CI.
+11. **Observability:** see `rules/observability/README.md`. Even a
+    batch script ships structured JSON logs (pino), emits a correlation
+    id per run, and — if long-running — exposes a `/ready` + `/version`
+    HTTP listener for the scheduler.
 
 ## Local dev
 
